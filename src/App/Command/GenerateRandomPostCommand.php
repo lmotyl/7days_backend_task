@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\Post;
 use Doctrine\ORM\EntityManagerInterface;
+use Domain\Post\PostManager;
 use joshtronic\LoremIpsum;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -17,31 +18,43 @@ class GenerateRandomPostCommand extends Command
     protected static $defaultName = 'app:generate-random-post';
     protected static $defaultDescription = 'Run app:generate-random-post';
 
-    private EntityManagerInterface $em;
+    private PostManager $postManager;
     private LoremIpsum $loremIpsum;
 
-    public function __construct(EntityManagerInterface $em, LoremIpsum $loremIpsum, string $name = null)
+    public function __construct(PostManager $postManager, LoremIpsum $loremIpsum, string $name = null)
     {
-        parent::__construct($name);
-        $this->em = $em;
+        $this->postManager = $postManager;
         $this->loremIpsum = $loremIpsum;
+        parent::__construct($name);
     }
 
     protected function configure(): void
     {
+        $this->addOption(
+            'summary',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Set =1, if title has to have: Summary YYYY-MM-DD',
+            false
+        );
+        $this->addOption(
+            'paragraphs',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Number of generated paragraphs. Default: 2',
+            2
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $title = $this->loremIpsum->words(mt_rand(4, 6));
-        $content = $this->loremIpsum->paragraphs(2);
+        $title = $input->getOption('summary') ?
+            sprintf("Summary %s", date('Y-m-d')) :
+            $this->loremIpsum->words(mt_rand(4, 6));
 
-        $post = new Post();
-        $post->setTitle($title);
-        $post->setContent($content);
+        $content = $this->loremIpsum->paragraphs($input->getOption('paragraphs'));
 
-        $this->em->persist($post);
-        $this->em->flush();
+        $this->postManager->addPost($title, $content);
 
         $output->writeln('A random post has been generated.');
 
