@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Form\DaysLongType;
 use App\Helper\DatetimeHelper;
+use Domain\Date\DateManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,40 +21,26 @@ class DateController extends AbstractController
         $form = $this->createForm(DaysLongType::class);
         $form->handleRequest($request);
         $submitted = false;
-        $minsToUtc = false;
-        $februaryInYear = false;
-        $givenMonthName = false;
-        $daysInGivenMonth = false;
         $timezone = false;
+        $dateManager = new DateManager(date('Y-m-d'), date_default_timezone_get());
 
         if ($form->isSubmitted() && $form->isValid()) {
             $data = $form->getData();
             $submitted = true;
-            $time = strtotime($data['date']);
-            $timezone = $data['timezone'];
-            $calculateDate = new \DateTime();
-            $calculateDate->setTimestamp($time);
 
-            $timezoneDate = new \DateTimeZone($data['timezone']);
-            $calculateDate->setTimezone($timezoneDate);
-            $februaryInYear = DatetimeHelper::getDaysInMonth((int) $calculateDate->format('Y'), 2);
-            $minsToUtc = DatetimeHelper::getMinutesOffsetUTC($calculateDate);
-            $givenMonthName = $calculateDate->format('F');
-            $daysInGivenMonth = DatetimeHelper::getDaysInMonth(
-                (int)$calculateDate->format('Y'),
-                (int)$calculateDate->format('m')
-            );
+            $dateManager = new DateManager($data['date'], $data['timezone']);
+            $timezone = $data['timezone'];
         }
 
         return $this->renderForm('date/index.html.twig', [
             'controller_name' => 'DateController',
             'form' => $form,
             'submitted' => $submitted,
-            'februaryInYear' => $februaryInYear,
+            'februaryInYear' => $dateManager->daysLongOfFebruary(),
             'timezone' => $timezone,
-            'minsToUtc' => $minsToUtc,
-            'givenMonthName' => $givenMonthName,
-            'daysInGivenMonth' => $daysInGivenMonth
+            'minsToUtc' => $dateManager->minsToUtc(),
+            'givenMonthName' => $dateManager->monthName(),
+            'daysInGivenMonth' => $dateManager->daysInMonth()
         ]);
     }
 }
